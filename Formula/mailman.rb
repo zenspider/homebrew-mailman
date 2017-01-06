@@ -1,9 +1,9 @@
 require 'formula'
 
 class Mailman < Formula
-  homepage 'http://www.gnu.org/software/mailman'
-  url      'http://ftpmirror.gnu.org/mailman/mailman-2.1.15.tgz'
-  sha1     '462ac96331491c76aca0128d8f9ced18c50a75d7'
+  homepage 'https://www.gnu.org/software/mailman/'
+  url      'https://ftpmirror.gnu.org/mailman/mailman-2.1.15.tgz'
+  sha256   'f355fb3d31772b488449e6f5173dafd31edca93172c307244c791d25d9e2bec8'
 
   ##
   # varprefix is where we're going to put all the mailman data. It
@@ -14,16 +14,24 @@ class Mailman < Formula
   end
 
   def install
-    ENV.j1 # parallel builds break
+    ENV.deparallelize # parallel builds break
+
+    puts "NOTE: mailman _must_ be installed by root. Using sudo below:"
 
     [prefix, varprefix].each do |path|
       mkdir_p path
-      chown "_mailman", "_mailman", path
-      system "chmod", "a+rx,g+ws", path
+      system "sudo", "chgrp", "_mailman", path
+      system "sudo", "chmod", "a+rx,g+ws", path
     end
 
     system "./configure", "--prefix=#{prefix}", "--with-var-prefix=#{varprefix}"
-    system "make install"
+
+    system "make", "install"
+    system "sudo", "chmod", "o-x", "#{varprefix}/archives/private"
+    Dir.chdir prefix do
+      system "sudo", "./bin/check_perms", "-f"
+    end
+
     apache_conf_path.write apache_conf
     apache_conf_path.chmod 0644
 
@@ -109,7 +117,7 @@ class Mailman < Formula
     EOS
   end
 
-  def test
-    system "#{bin}/check_perms", "-f"
+  test do
+    system "#{bin}/check_perms"
   end
 end
